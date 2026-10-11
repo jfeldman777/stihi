@@ -579,6 +579,12 @@
     localStorage.setItem('stihi.theme', theme);
   });
 
+  document.getElementById('qrBtn').addEventListener('click', () => {
+    const targets = [{ label: 'Сайт', url: location.origin + location.pathname }];
+    if (location.hash && location.hash !== '#/') targets.push({ label: 'Эта страница', url: location.href });
+    window.QR.show(data.author + ' — стихи', targets);
+  });
+
   document.getElementById('menuBtn').addEventListener('click', () => document.body.classList.toggle('menu-open'));
   document.getElementById('backdrop').addEventListener('click', () => document.body.classList.remove('menu-open'));
 
