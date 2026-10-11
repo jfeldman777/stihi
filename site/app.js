@@ -101,13 +101,13 @@
     const on = inBook(p.id);
     return el('button', {
       class: 'book-toggle' + (on ? ' on' : '') + (compact ? ' compact' : ''),
-      title: on ? 'Убрать из книги' : 'Добавить в книгу',
+      title: on ? 'Убрать из подборки' : 'Добавить в подборку',
       onclick: e => {
         e.preventDefault();
         setInBook([p.id], !inBook(p.id));
         refresh();
       },
-    }, compact ? (on ? '✓' : '+') : (on ? '✓ В книге' : '+ В книгу'));
+    }, compact ? (on ? '✓' : '+') : (on ? '✓ В подборке' : '+ В подборку'));
   }
 
   // ---- Views ----
@@ -195,7 +195,7 @@
             setInBook(ids, !all);
             refresh();
           },
-        }, all ? '✓ Весь раздел в книге' : '+ Весь раздел в книгу')),
+        }, all ? '✓ Весь раздел в подборке' : '+ Весь раздел в подборку')),
       poemList(sec.poems));
   }
 
@@ -270,34 +270,53 @@
     };
   }
 
-  function downloadBook(settings) {
+  function makeFile(settings, kind) {
     const opts = docxOptions(settings);
-    const blob = window.Docx.build(book.map(id => byId.get(id)), opts);
-    const name = (opts.author + ' — ' + opts.title).replace(/[\\/:*?"<>|]/g, '_') + '.docx';
-    const link = el('a', { href: URL.createObjectURL(blob), download: name });
+    const list = book.map(id => byId.get(id));
+    const blob = kind === 'feed' ? window.Docx.buildFeed(list, opts) : window.Docx.buildBooklet(list, opts);
+    const suffix = kind === 'feed' ? ' (лента)' : ' (книжка)';
+    const name = (opts.author + ' — ' + opts.title + suffix).replace(/[\\/:*?"<>|]/g, '_') + '.docx';
+    return new File([blob], name, { type: blob.type });
+  }
+
+  function downloadFile(file) {
+    const link = el('a', { href: URL.createObjectURL(file), download: file.name });
     document.body.append(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(link.href), 10000);
   }
 
+  const canShareFiles = () => {
+    try {
+      return !!(navigator.canShare && navigator.canShare({
+        files: [new File([''], 'test.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })],
+      }));
+    } catch (e) {
+      return false;
+    }
+  };
+
+  async function shareFile(file, settings) {
+    try {
+      await navigator.share({ files: [file], title: file.name, text: settings.author + ' — ' + settings.title });
+    } catch (e) {
+      if (e.name !== 'AbortError') downloadFile(file);
+    }
+  }
+
   function showBook() {
     markActive(null);
     const settings = loadSettings();
     const list = book.map(id => byId.get(id));
-    const stats = el('p', { class: 'book-stats' });
+    const bookletStats = el('p', { class: 'muted' });
 
     function updateStats() {
-      if (!list.length) {
-        stats.textContent = 'Книга пока пуста. Откройте стихотворение или раздел и нажмите «+ В книгу».';
-        return;
-      }
+      if (!list.length) return;
       const lay = window.Docx.layout(list, docxOptions(settings));
       const sheets = lay.total / 4;
-      stats.replaceChildren(...[
-        el('b', { text: poemsWord(list.length) }),
-        ' · ' + plural(lay.total, ['страница', 'страницы', 'страниц']) + ' А5 · ' +
-        plural(sheets, ['лист', 'листа', 'листов']) + ' А4',
+      bookletStats.replaceChildren(...[
+        plural(lay.total, ['страница', 'страницы', 'страниц']) + ' А5 · ' + plural(sheets, ['лист', 'листа', 'листов']) + ' А4',
         sheets > 12 ? el('span', { class: 'warn', text: ' — для скрепки многовато, обычно сшивают до 10–12 листов' }) : null,
       ].filter(Boolean));
     }
@@ -332,7 +351,7 @@
       el('button', { class: 'icon-btn', title: 'Ниже', disabled: i === list.length - 1, onclick: () => moveInBook(i, i + 1) }, '↓'),
       el('button', {
         class: 'icon-btn',
-        title: 'Убрать из книги',
+        title: 'Убрать из подборки',
         onclick: () => {
           setInBook([p.id], false);
           refresh();
@@ -369,9 +388,12 @@
       clearDropMarks();
     });
 
-    setView('Книга — ' + data.author,
-      el('h1', { text: 'Книжка для печати' }),
-      stats,
+    const empty = !list.length;
+    setView('Подборка — ' + data.author,
+      el('h1', { text: 'Подборка' }),
+      el('p', { class: 'book-stats' }, empty
+        ? 'Подборка пока пуста. Откройте стихотворение или раздел и нажмите «+ В подборку».'
+        : el('b', { text: poemsWord(list.length) })),
       list.length ? el('div', { class: 'book-toolbar' },
         el('span', { class: 'muted', text: 'Сортировать:' }),
         ...SORTS.map(([label, sort]) => el('button', {
@@ -383,32 +405,50 @@
           },
         }, label))) : null,
       list.length ? listEl : null,
-      el('section', { class: 'book-settings' },
-        el('h2', { text: 'Оформление' }),
-        field('Название на обложке', textInput('title')),
-        field('Автор на обложке', textInput('author')),
-        field('Последняя страница — об авторе', textInput('about', 'textarea')),
-        checkbox('photo', 'Фото автора на последней странице', !data.photo),
-        checkbox('newPagePerPoem', 'Каждое стихотворение с новой страницы'),
-        checkbox('toc', 'Содержание с номерами страниц')),
-      el('div', { class: 'book-actions' },
-        el('button', { class: 'primary', disabled: !list.length, onclick: () => downloadBook(settings) }, 'Скачать Word (.docx)'),
-        list.length ? el('button', {
+      list.length ? el('div', { class: 'book-actions' },
+        el('button', {
           class: 'secondary',
           onclick: () => {
-            if (confirm('Убрать все стихотворения из книги?')) {
+            if (confirm('Убрать все стихотворения из подборки?')) {
               setInBook(book.slice(), false);
               refresh();
             }
           },
-        }, 'Очистить список') : null),
-      el('details', { class: 'help', open: true },
-        el('summary', { text: 'Как напечатать книжку' }),
-        el('ol', {},
-          el('li', { text: 'Откройте скачанный файл в Microsoft Word. Страницы уже настроены как брошюра: каждая страница — половина листа А4.' }),
-          el('li', { text: 'Файл → Печать → «Двусторонняя печать», переворачивать относительно короткого края. Если принтер не умеет печатать с двух сторон — выберите «Печать вручную на обеих сторонах».' }),
-          el('li', { text: 'Сложите стопку листов пополам и скрепите степлером по сгибу.' })),
-        el('p', { class: 'muted', text: 'Word сам расставит страницы по листам в нужном порядке. Число страниц уже кратно четырём, поэтому страница об авторе окажется на задней обложке.' })));
+        }, 'Очистить подборку')) : null,
+      el('section', { class: 'book-settings' },
+        el('h2', { text: 'Оформление' }),
+        field('Название', textInput('title')),
+        field('Автор', textInput('author')),
+        field('Об авторе (в конце)', textInput('about', 'textarea')),
+        checkbox('photo', 'Фото автора', !data.photo)),
+      el('div', { class: 'outputs' },
+        el('section', { class: 'output-card' },
+          el('h2', { text: '1. Книжка для печати' }),
+          el('p', { text: 'Брошюра А5: печатается с двух сторон на листах А4, складывается пополам и скрепляется по сгибу. Обложка, содержание, страница об авторе на задней обложке.' }),
+          empty ? null : bookletStats,
+          checkbox('newPagePerPoem', 'Каждое стихотворение с новой страницы'),
+          checkbox('toc', 'Содержание с номерами страниц'),
+          el('div', { class: 'book-actions' },
+            el('button', { class: 'primary', disabled: empty, onclick: () => downloadFile(makeFile(settings, 'booklet')) }, 'Скачать книжку (.docx)')),
+          el('details', { class: 'help' },
+            el('summary', { text: 'Как напечатать' }),
+            el('ol', {},
+              el('li', { text: 'Откройте файл в Microsoft Word. Страницы уже настроены как брошюра: каждая страница — половина листа А4.' }),
+              el('li', { text: 'Файл → Печать → «Двусторонняя печать», переворачивать относительно короткого края. Если принтер не умеет печатать с двух сторон — «Печать вручную на обеих сторонах».' }),
+              el('li', { text: 'Сложите стопку листов пополам и скрепите степлером по сгибу.' })))),
+        el('section', { class: 'output-card' },
+          el('h2', { text: '2. Лента для почты' }),
+          el('p', { text: 'Все стихи подряд одним файлом Word (А4), в конце — об авторе. Удобно отправить письмом и читать с экрана.' }),
+          el('div', { class: 'book-actions' },
+            el('button', { class: 'primary', disabled: empty, onclick: () => downloadFile(makeFile(settings, 'feed')) }, 'Скачать ленту (.docx)'),
+            canShareFiles() ? el('button', {
+              class: 'secondary',
+              disabled: empty,
+              onclick: () => shareFile(makeFile(settings, 'feed'), settings),
+            }, 'Отправить…') : null),
+          el('p', { class: 'muted', text: canShareFiles()
+            ? '«Отправить…» откроет меню, где можно выбрать почту или мессенджер — файл приложится сам.'
+            : 'Скачайте файл и приложите его к письму.' }))));
 
     updateStats();
   }

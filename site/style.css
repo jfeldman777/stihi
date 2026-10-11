@@ -326,6 +326,26 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; }
 .secondary { border: 1px solid var(--line); background: none; color: var(--fg); }
 .secondary:hover { border-color: var(--accent); }
 
+.outputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+}
+.output-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.output-card h2 { margin: 0; font: 600 1.25rem Georgia, "PT Serif", serif; }
+.output-card p { margin: 0; }
+.output-card .book-actions { margin-top: 6px; }
+.output-card .help { margin-top: 4px; padding: 0; border: 0; }
+
 .help { margin-top: 32px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .help summary { font-weight: 600; cursor: pointer; }
 .help ol { margin: 12px 0 0; padding-left: 20px; }
