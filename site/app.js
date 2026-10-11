@@ -27,6 +27,7 @@
   const search = document.getElementById('search');
   const bookCount = document.getElementById('bookCount');
 
+  const ABOUT_URL = 'https://aromatic-keyboard-369.notion.site/22522db3cb0880f1a1fffd512d49ceba';
   const BOOK_KEY = 'stihi.book';
   const SETTINGS_KEY = 'stihi.bookSettings';
   let book = loadBook();
@@ -121,6 +122,8 @@
 
   // ---- Views ----
 
+  const aboutLink = cls => el('a', { class: cls, href: ABOUT_URL, target: '_blank', rel: 'noopener', text: 'Об авторе' });
+
   function buildSidebar() {
     for (const sec of sections) {
       const list = el('ul', { class: 'toc' }, ...sec.poems.map(p =>
@@ -129,6 +132,7 @@
         el('summary', {}, el('span', { text: sec.name }), el('span', { class: 'count', text: sec.poems.length })),
         list));
     }
+    sidebar.append(aboutLink('sidebar-about'));
   }
 
   function openSection(index) {
@@ -223,7 +227,7 @@
     const last = byId.get(localStorage.getItem('stihi.last'));
     setView(data.author + ' — стихи',
       el('h1', { class: 'home-title', text: data.author }),
-      el('p', { class: 'muted', text: poemsWord(poems.length) + ' в ' + sections.length + ' разделах' }),
+      el('p', { class: 'muted' }, poemsWord(poems.length) + ' в ' + sections.length + ' разделах · ', aboutLink()),
       last ? el('p', { class: 'continue' }, 'Продолжить чтение: ',
         el('a', { href: '#/p/' + last.id, text: last.title })) : null,
       el('div', { class: 'cards' }, ...sections.map(sec =>
