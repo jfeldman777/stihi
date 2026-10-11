@@ -240,6 +240,17 @@
   }
 
   var dialog;
+  // Browsers without <dialog> support (older Safari) get a plain fixed box instead of a modal.
+  function open() {
+    if (dialog.showModal) return dialog.showModal();
+    dialog.setAttribute('open', '');
+    dialog.style.cssText = 'display:block;position:fixed;left:0;right:0;top:10vh;margin:0 auto;z-index:1000;';
+  }
+  function close() {
+    if (dialog.close) return dialog.close();
+    dialog.removeAttribute('open');
+    dialog.style.display = 'none';
+  }
   // targets: [{ label, url }] — several targets get a switch above the code.
   function show(title, targets) {
     if (!dialog) {
@@ -249,8 +260,8 @@
         '<div class="qr-code"></div><a class="qr-url" target="_blank" rel="noopener"></a>' +
         '<p class="qr-hint">Наведите камеру телефона на код, чтобы открыть ссылку.</p>' +
         '<button class="qr-close" type="button">Закрыть</button></div>';
-      dialog.addEventListener('click', function (e) { if (e.target === dialog) dialog.close(); });
-      dialog.querySelector('.qr-close').addEventListener('click', function () { dialog.close(); });
+      dialog.addEventListener('click', function (e) { if (e.target === dialog) close(); });
+      dialog.querySelector('.qr-close').addEventListener('click', close);
       document.body.appendChild(dialog);
     }
     var tabs = dialog.querySelector('.qr-tabs');
@@ -272,7 +283,7 @@
       tabs.appendChild(b);
     });
     pick(targets[0]);
-    dialog.showModal();
+    open();
   }
 
   window.QR = { encode: encode, svg: svg, show: show };

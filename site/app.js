@@ -580,8 +580,10 @@
   });
 
   document.getElementById('qrBtn').addEventListener('click', () => {
-    const targets = [{ label: 'Сайт', url: location.origin + location.pathname }];
-    if (location.hash && location.hash !== '#/') targets.push({ label: 'Эта страница', url: location.href });
+    const local = !/^https?:$/.test(location.protocol) || /^(localhost|127\.|\[::1\])/.test(location.hostname);
+    const site = local ? 'https://jfeldman777.github.io/stihi/' : location.origin + location.pathname;
+    const targets = [{ label: 'Сайт', url: site }];
+    if (location.hash && location.hash !== '#/') targets.push({ label: 'Эта страница', url: site + location.hash });
     window.QR.show(data.author + ' — стихи', targets);
   });
 
