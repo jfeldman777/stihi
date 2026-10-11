@@ -238,7 +238,7 @@
     const ids = sec.poems.map(p => p.id);
     const all = ids.every(inBook);
     setView(sec.name + ' — ' + data.author,
-      el('p', { class: 'crumbs' }, el('a', { href: '#/', text: 'Все разделы' })),
+      el('p', { class: 'crumbs' }, el('a', { href: '#/', text: '← Главная' })),
       el('h1', { text: sec.name }),
       el('div', { class: 'section-head' },
         el('span', { class: 'muted', text: poemsWord(sec.poems.length) }),
@@ -263,7 +263,10 @@
     setView(p.title + ' — ' + data.author,
       el('article', { class: 'poem' },
         el('p', { class: 'crumbs' },
-          el('a', { href: '#/s/' + sec.index, text: sec.name }),
+          el('span', {},
+            el('a', { href: '#/', text: '← Главная' }),
+            el('span', { class: 'muted', text: ' / ' }),
+            el('a', { href: '#/s/' + sec.index, text: sec.name })),
           el('span', { class: 'num', text: '№ ' + p.id })),
         el('h1', { text: p.title }),
         el('div', { class: 'poem-text', text: p.text }),
