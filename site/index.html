@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Стихи</title>
+<link rel="stylesheet" href="style.css">
+<script>
+  (function () {
+    var theme = localStorage.getItem('stihi.theme');
+    if (theme) document.documentElement.setAttribute('data-theme', theme);
+    var size = localStorage.getItem('stihi.size');
+    if (size) document.documentElement.style.setProperty('--poem-size', size + 'rem');
+  })();
+</script>
+</head>
+<body>
+<header class="topbar">
+  <button id="menuBtn" class="icon-btn menu-btn" title="Оглавление" aria-label="Оглавление">&#9776;</button>
+  <a href="#/" class="brand" id="brand">Стихи</a>
+  <input id="search" class="search" type="search" placeholder="Поиск по стихам…" autocomplete="off" spellcheck="false">
+  <a href="#/book" class="book-link" title="Собрать книжку для печати">Книга <span id="bookCount" class="badge"></span></a>
+  <div class="tools">
+    <button id="randomBtn" class="icon-btn" title="Случайное стихотворение">&#9861;</button>
+    <button id="smallerBtn" class="icon-btn" title="Шрифт мельче">A&minus;</button>
+    <button id="largerBtn" class="icon-btn" title="Шрифт крупнее">A+</button>
+    <button id="themeBtn" class="icon-btn" title="Светлая / тёмная тема">&#9680;</button>
+  </div>
+</header>
+<div class="layout">
+  <nav id="sidebar" class="sidebar" aria-label="Оглавление"></nav>
+  <main id="main" class="main"></main>
+</div>
+<div id="backdrop" class="backdrop"></div>
+<script src="data.js"></script>
+<script src="docx.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
