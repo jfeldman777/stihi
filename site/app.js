@@ -7,7 +7,16 @@
   poems.forEach((p, i) => {
     p.index = i;
     p.title = p.title || '* * *';
-    p.haystack = normalize(p.title + '\n' + p.text);
+    p.lines = [p.title, ...p.text.split('\n')];
+    p.normLines = p.lines.map(normalize);
+    p.spans = [];
+    p.normAll = '';
+    p.normLines.forEach((line, li) => {
+      if (!line) return;
+      if (p.normAll) p.normAll += ' ';
+      p.spans.push({ li, start: p.normAll.length, end: p.normAll.length + line.length });
+      p.normAll += line;
+    });
     sections[p.s].poems.push(p);
   });
   const byId = new Map(poems.map(p => [p.id, p]));
@@ -23,7 +32,7 @@
   let book = loadBook();
 
   function normalize(s) {
-    return s.toLowerCase().replace(/ё/g, 'е');
+    return s.toLowerCase().replace(/ё/g, 'е').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   }
 
   function el(tag, attrs, ...children) {
@@ -137,26 +146,70 @@
     }
   }
 
-  function poemList(list, query) {
+  function poemList(list, extra) {
     return el('ul', { class: 'poem-list' }, ...list.map(p => el('li', {},
       el('div', { class: 'poem-row' },
         el('a', { href: '#/p/' + p.id },
           el('span', { class: 'num', text: p.id }),
           el('span', { class: 'title', text: p.title })),
         bookToggle(p, true)),
-      query ? snippet(p, query) : null)));
+      extra ? extra(p) : null)));
   }
 
-  function snippet(p, query) {
-    const source = p.title + '\n' + p.text;
-    const at = p.haystack.indexOf(query);
-    const start = source.lastIndexOf('\n', at) + 1;
-    let end = source.indexOf('\n', at + query.length);
-    if (end < 0) end = source.length;
-    return el('div', { class: 'snippet' },
-      source.slice(start, at),
-      el('mark', { text: source.slice(at, at + query.length) }),
-      source.slice(at + query.length, end));
+  // Crude Russian stemming: cut the ending so that "зимой" also finds "зима", "дороги" — "дорога".
+  const stem = w => w.length >= 5 ? w.slice(0, -2) : w.length === 4 ? w.slice(0, -1) : w;
+
+  // Levels: 4 — phrase inside one line, 3 — phrase across lines, 2 — all words in one line, 1 — all words in the poem.
+  function findPoems(raw) {
+    const query = normalize(raw);
+    if (query.length < 2) return { words: [], results: [] };
+    const words = query.split(' ').map(stem);
+    const results = [];
+    for (const p of poems) {
+      let match = null;
+      const phraseLine = p.normLines.findIndex(line => line.includes(query));
+      const at = phraseLine < 0 ? p.normAll.indexOf(query) : -1;
+      if (phraseLine >= 0) {
+        match = { level: 4, lines: [phraseLine] };
+      } else if (at >= 0) {
+        const end = at + query.length;
+        match = { level: 3, lines: p.spans.filter(s => s.end > at && s.start < end).map(s => s.li) };
+      } else {
+        const wordsLine = p.normLines.findIndex(line => words.every(w => line.includes(w)));
+        if (wordsLine >= 0) {
+          match = { level: 2, lines: [wordsLine] };
+        } else if (words.every(w => p.normAll.includes(w))) {
+          let best = 0, bestCount = -1;
+          p.normLines.forEach((line, li) => {
+            const count = words.filter(w => line.includes(w)).length;
+            if (count > bestCount) {
+              best = li;
+              bestCount = count;
+            }
+          });
+          match = { level: 1, lines: [best] };
+        }
+      }
+      if (match) results.push(Object.assign({ poem: p }, match));
+    }
+    results.sort((a, b) => b.level - a.level || a.poem.index - b.poem.index);
+    return { words, results };
+  }
+
+  function highlight(text, words) {
+    const long = words.filter(w => w.length > 1);
+    const pattern = (long.length ? long : words)
+      .slice().sort((a, b) => b.length - a.length)
+      .map(w => '[\\p{L}\\p{N}]*' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/е/g, '[её]') + '[\\p{L}\\p{N}]*')
+      .join('|');
+    const parts = [];
+    let last = 0;
+    for (const m of text.matchAll(new RegExp(pattern, 'giu'))) {
+      parts.push(text.slice(last, m.index), el('mark', { text: m[0] }));
+      last = m.index + m[0].length;
+    }
+    parts.push(text.slice(last));
+    return parts;
   }
 
   function setView(title, ...nodes) {
@@ -230,12 +283,21 @@
 
   function showSearch(raw) {
     markActive(null);
-    const query = normalize(raw.trim());
-    const found = query ? poems.filter(p => p.haystack.includes(query)) : [];
+    const { words, results } = findPoems(raw);
+    const snippets = new Map(results.map(r => [r.poem, el('div', { class: 'snippet' },
+      ...highlight(r.lines.map(li => r.poem.lines[li].trim()).join(' / '), words))]));
+    const extra = p => snippets.get(p);
+    const exact = results.filter(r => r.level >= 3).map(r => r.poem);
+    const partial = results.filter(r => r.level < 3).map(r => r.poem);
     setView('Поиск: ' + raw,
       el('h1', { text: 'Поиск: «' + raw.trim() + '»' }),
-      el('p', { class: 'muted', text: found.length ? 'Найдено ' + poemsWord(found.length) : 'Ничего не найдено' }),
-      poemList(found, query));
+      el('p', { class: 'muted', text: results.length
+        ? 'Найдено ' + poemsWord(results.length)
+        : 'Ничего не найдено. Попробуйте оставить только несколько самых запоминающихся слов.' }),
+      exact.length && partial.length ? el('h2', { class: 'result-group', text: 'Точное совпадение' }) : null,
+      exact.length ? poemList(exact, extra) : null,
+      partial.length ? el('h2', { class: 'result-group', text: 'Все слова есть, но не подряд' }) : null,
+      partial.length ? poemList(partial, extra) : null);
   }
 
   // ---- Book view ----

@@ -188,6 +188,8 @@ a:hover { text-decoration: underline; }
 .poem-list .title { font-family: Georgia, "PT Serif", serif; font-size: 1.08rem; }
 .snippet { padding: 0 4px 10px 58px; color: var(--muted); font-size: .93rem; white-space: pre-wrap; }
 mark { background: var(--mark); color: inherit; border-radius: 2px; }
+.result-group { margin: 28px 0 0; color: var(--muted); font: 600 .95rem system-ui, sans-serif; text-transform: uppercase; letter-spacing: .04em; }
+.result-group + .poem-list { margin-top: 8px; }
 
 .poem h1 { margin-bottom: 28px; }
 .poem-text {
