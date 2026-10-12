@@ -243,7 +243,7 @@
           runs: line ? run(line) : '',
         }));
       }
-      out.push(para({ style: 'PoemInfo', runs: run(poem.info) }));
+      if (poem.info) out.push(para({ style: 'PoemInfo', runs: run(poem.info) }));
     }
 
     const about = opts.about.replace(/\r/g, '').trim();
