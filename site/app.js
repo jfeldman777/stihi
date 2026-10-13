@@ -120,6 +120,33 @@
     }, compact ? (on ? '✓' : '+') : (on ? '✓ В подборке' : '+ В подборку'));
   }
 
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise((resolve, reject) => {
+      const ta = el('textarea', { readonly: true });
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.append(ta);
+      ta.select();
+      try { document.execCommand('copy') ? resolve() : reject(); } catch (e) { reject(e); }
+      ta.remove();
+    });
+  }
+
+  function copyButton(p) {
+    const label = 'Скопировать стихотворение';
+    const btn = el('button', { class: 'book-toggle', title: 'Название, текст, автор и ссылка' }, label);
+    btn.addEventListener('click', () => {
+      const text = [p.title, p.text, '© ' + data.author, location.href].join('\n\n');
+      copyText(text).then(
+        () => { btn.textContent = '✓ Скопировано'; },
+        () => { btn.textContent = 'Не удалось скопировать'; })
+        .then(() => setTimeout(() => { btn.textContent = label; }, 1600));
+    });
+    return btn;
+  }
+
   // ---- Views ----
 
   const aboutLink = cls => el('a', { class: cls, href: ABOUT_URL, target: '_blank', rel: 'noopener', text: 'Об авторе' });
@@ -278,7 +305,7 @@
           el('p', { class: 'meta' },
             p.info && p.url ? p.info + ' · ' : p.info || null,
             p.url ? el('a', { href: p.url, target: '_blank', rel: 'noopener', text: 'на Стихи.ру' }) : null),
-          bookToggle(p))),
+          el('div', { class: 'poem-actions' }, copyButton(p), bookToggle(p)))),
       el('nav', { class: 'pager' },
         pagerLink(prev, '← Предыдущее', 'prev'),
         pagerLink(next, 'Следующее →', 'next')));

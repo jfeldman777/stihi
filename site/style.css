@@ -266,6 +266,7 @@ mark { background: var(--mark); color: inherit; border-radius: 2px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .poem-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 36px; }
 .poem-foot .meta { margin: 0; }
+.poem-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .book-stats { font-size: 1.05rem; }
 .warn { color: var(--accent); }
